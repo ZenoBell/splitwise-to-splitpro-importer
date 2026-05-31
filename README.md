@@ -31,6 +31,17 @@ This tool was created from a personal migration and is provided without warranty
 * Unresolved users must be mapped or created
 * This is a migration tool, not an ongoing synchronization tool
 
+## Before You Run This
+
+* Back up PostgreSQL.
+* Create or log into all required Split Pro users.
+* Generate Prisma Client from the target Split Pro schema.
+* Create `splitwise-user-map.json`.
+* Run `pnpm import:splitwise --dry-run` successfully.
+* Verify user mappings.
+* Verify planned import counts.
+* Only then run `pnpm import:splitwise --commit`.
+
 ## Required Split Pro version
 
 This importer keeps Prisma and the existing Split Pro data model. It expects a Split Pro checkout whose Prisma schema contains:
@@ -43,9 +54,15 @@ This importer keeps Prisma and the existing Split Pro data model. It expects a S
 * `SplitType.EXACT`
 * `SplitType.SETTLEMENT`
 
-It was extracted from a Split Pro checkout using Prisma Client 6.x and the post-UUID expense schema. Before publishing or running against another Split Pro version, compare the importer writes in `src/import-splitwise.ts` with that checkout's `prisma/schema.prisma`.
+Tested with:
 
-The bundled `src/currency.ts` table was copied from Split Pro commit `1693b5e` so currency validation and decimal precision match that Split Pro version exactly. If you target a different Split Pro version, compare or replace this file with that version's `src/lib/currency.ts`.
+* Split Pro commit `1693b5e`
+* Prisma `6.19.3`
+* Node `22.x`
+
+It was extracted from a Split Pro checkout using the post-UUID expense schema. Before publishing or running against another Split Pro version, compare the importer writes in `src/import-splitwise.ts` with that checkout's `prisma/schema.prisma`.
+
+The importer validates currencies using the same definitions as Split Pro. The bundled `src/currency.ts` table was copied from Split Pro commit `1693b5e` so currency validation and decimal precision match that Split Pro version exactly. If your Split Pro version differs, replace `src/currency.ts` with the version from your checkout.
 
 ## Install
 
@@ -85,6 +102,18 @@ SPLITWISE_ACCESS_TOKEN
 ```bash
 SPLITWISE_API_KEY
 ```
+
+## Getting a Splitwise Token
+
+Create a Splitwise API application or personal access credential from the official Splitwise developer settings, then use the bearer token as `SPLITWISE_ACCESS_TOKEN`.
+
+Splitwise currently documents API access at:
+
+```text
+https://secure.splitwise.com/apps
+```
+
+Use credentials for your own Splitwise account. Do not commit the token to git, paste it into docs, or put it in `splitwise-user-map.json`.
 
 ## User mapping
 
@@ -203,9 +232,32 @@ pnpm import:splitwise --delete-imported --yes
 
 Dry run fetches Splitwise data, validates mappings, prints found Splitwise users, prints the import plan, and does not write to the database.
 
+Example dry-run summary:
+
+```text
+Splitwise users found:
+- splitwiseId=31971127 | name="Example User" | email=(none) | groups=Example Group | totals=EUR paid=120 owed=95 | resolution=mapped to User.id 1
+
+Import plan
+- Users to create: 0
+- Unresolved users: 0
+- New groups: 12
+- New expenses: 812
+- Already imported expenses: 0
+- Skipped expenses/items: 22
+
+Expenses by group:
+- Example Group: 134
+- non-group: 18
+```
+
 Commit mode writes directly to the configured Split Pro database. Back up the database first, run dry-run first, and verify the planned counts before committing.
 
 Rollback mode deletes imported expenses whose `transactionId` starts with `splitwise:`. Cascading deletes should remove those expenses' participants and notes. Rollback may not remove created groups or users.
+
+Splitwise payments are imported as Split Pro settlement expenses with `SplitType.SETTLEMENT`. Regular Splitwise expenses are imported with `SplitType.EXACT`. Multi-payer items are skipped because the importer currently requires one identifiable payer.
+
+Large Splitwise accounts may hit Splitwise API rate limits. The importer fetches expenses in pages, but it does not implement a retry/backoff queue. If Splitwise returns a rate-limit or temporary API error, wait and rerun dry-run or commit. Already imported expenses are skipped by `transactionId`, so reruns are idempotent for expenses.
 
 ## Docker
 
