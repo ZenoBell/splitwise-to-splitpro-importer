@@ -1,0 +1,25 @@
+{
+  "name": "splitwise-to-splitpro-importer",
+  "version": "1.0.0",
+  "description": "Unofficial one-time migration utility for importing Splitwise history into Split Pro.",
+  "type": "module",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "import:splitwise": "tsx src/import-splitwise.ts",
+    "prisma:sync-schema": "mkdir -p prisma && cp \"${SPLIT_PRO_DIR:-../split-pro}/prisma/schema.prisma\" prisma/schema.prisma",
+    "prisma:generate": "pnpm prisma:sync-schema && prisma generate --schema prisma/schema.prisma",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "nanoid": "^5.0.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "prisma": "^6.16.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "pnpm@10.11.0"
+}

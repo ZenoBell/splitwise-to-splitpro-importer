@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+.env.*
+splitwise-user-map.json
+prisma/schema.prisma
+*.log
